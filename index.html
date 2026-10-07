@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Notas Rápidas</title>
+  
+  <!-- Optimización Mobile / PWA para Android Chrome -->
+  <meta name="theme-color" content="#090d16">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              900: '#0c4a6e',
+            }
+          },
+          animation: {
+            'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Estilos para sensación 100% nativa en Android */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    input, textarea {
+      user-select: text;
+    }
+    /* Scroll suave y oculto para disimular */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans bg-slate-950 text-slate-100 overflow-hidden select-none">
+
+  <!-- ================================================================= -->
+  <!-- VISTA 1: MODO CAMUFLAJE (APARIENCIA DE BLOC DE NOTAS MINIMALISTA) -->
+  <!-- ================================================================= -->
+  <div id="view-camouflage" class="flex-1 flex flex-col h-full relative">
+    
+    <!-- Barra superior de la App de Notas -->
+    <header class="h-16 px-4 flex items-center justify-between border-b border-slate-850/60 bg-slate-900/40 backdrop-blur-md">
+      <div class="flex items-center space-x-3">
+        <!-- ÁREA SECRETA 1: Pulsación Larga en el icono de notas para activar la escucha -->
+        <button id="secret-listen-trigger" class="w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700/50 flex items-center justify-center text-slate-300 active:scale-95 transition-all">
+          <i data-lucide="file-text" class="w-5 h-5"></i>
+        </button>
+        <div>
+          <!-- Nombre ordinario de la app -->
+          <h1 id="app-title-trigger" class="text-base font-semibold tracking-tight text-slate-200">Notas Personales</h1>
+          <p class="text-xs text-slate-400">Sincronizado hoy</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <!-- Indicador discreto de escucha (apariencia de sincronización en la nube) -->
+        <div id="listening-indicator" class="hidden items-center px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1.5 inline-block"></span>
+          <span id="listening-text">Escuchando...</span>
+        </div>
+
+        <!-- ÁREA SECRETA 2: Esquina discreta para abrir Configuración (doble toque o toque simple en el icono sutil) -->
+        <button id="btn-open-settings" title="Ajustes" class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-300 active:bg-slate-800/50 transition">
+          <i data-lucide="more-vertical" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Contenido simulado de Bloc de Notas -->
+    <main class="flex-1 overflow-y-auto p-4 space-y-4">
+      
+      <!-- Entrada simulada activa -->
+      <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-sm relative">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Borrador rápido</span>
+          <span class="text-xs text-slate-500" id="current-time-display">Hoy</span>
+        </div>
+
+        <!-- Texto simulado o transcripción en tiempo real camuflada -->
+        <div id="note-body" class="min-h-[110px] text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+Revisar recordatorios pendientes de la semana y organizar detalles de la reunión.
+        </div>
+
+        <!-- Barra inferior de la nota con botón aparentemente inocente para disparar el calendario -->
+        <div class="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between">
+          <div class="flex items-center space-x-2 text-xs text-slate-500">
+            <i data-lucide="check-check" class="w-3.5 h-3.5 text-slate-400"></i>
+            <span id="status-subtext">Guardado automáticamente</span>
+          </div>
+
+          <!-- BOTÓN PÚBLICO O INOCENTE QUE DISPARA EL EVENTO -->
+          <button id="btn-save-note-action" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-medium text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-sky-400"></i>
+            <span id="btn-action-label">Agendar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista de notas secundarias para realismo visual absoluto -->
+      <div class="space-y-2 opacity-60">
+        <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-850">
+          <h2 class="text-xs font-semibold text-slate-300">Ideas para la semana</h2>
+          <p class="text-xs text-slate-400 truncate mt-1">Comprar materiales, confirmar horarios y enviar archivos.</p>
+        </div>
+        <div class="p-3.5 rounded-xl bg-slate-900/40 border border-slate-850">
+          <h2 class="text-xs font-semibold text-slate-300">Libros recomendados</h2>
+          <p class="text-xs text-slate-400 truncate mt-1">Psicología aplicada, lenguaje no verbal y lecturas clave.</p>
+        </div>
+      </div>
+
+      <!-- PANEL SECRETO PARA EL MAGO (HUD DE MONITOREO INVISIBLE A DISTANCIA) -->
+      <!-- Diseñado para que con solo una mirada de reojo se vean los datos detectados -->
+      <div id="magician-hud" class="mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-sky-950/40 to-indigo-950/40 border border-sky-800/30">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-sky-400">Monitor de Predicción</span>
+          </div>
+          <span id="hud-voice-state" class="text-[10px] text-slate-400">Micrófono inactivo</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">Carta Detectada</span>
+            <span id="hud-card" class="font-bold text-sky-300 text-sm mt-0.5 block truncate">Esperando...</span>
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">Fecha Detectada</span>
+            <span id="hud-date" class="font-bold text-emerald-300 text-sm mt-0.5 block truncate">Esperando...</span>
+          </div>
+        </div>
+
+        <!-- Botón de acceso directo al calendario una vez listo -->
+        <div class="mt-3 flex items-center space-x-2">
+          <button id="btn-quick-calendar" disabled class="flex-1 py-2 px-3 rounded-xl bg-sky-600 disabled:bg-slate-800/80 disabled:text-slate-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 active:scale-95 transition">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            <span>Ver Predicción en Google Calendar</span>
+          </button>
+          <button id="btn-reset-hud" title="Limpiar captura" class="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 active:scale-95">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Barra inferior flotante de la app de notas -->
+    <nav class="h-16 px-6 border-t border-slate-850/60 bg-slate-900/60 backdrop-blur-md flex items-center justify-around text-slate-400">
+      <button class="flex flex-col items-center space-y-1 text-sky-400">
+        <i data-lucide="book-open" class="w-4 h-4"></i>
+        <span class="text-[10px] font-medium">Notas</span>
+      </button>
+      
+      <!-- BOTÓN CENTRAL MÁGICO (PULSAR PARA ESCUCHAR O DETENER) -->
+      <button id="fab-magic-mic" class="w-12 h-12 -mt-5 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 shadow-lg shadow-sky-500/20 text-white flex items-center justify-center active:scale-90 transition-all border-2 border-slate-950">
+        <i data-lucide="mic" id="fab-icon" class="w-5 h-5"></i>
+      </button>
+
+      <button id="secret-settings-corner" class="flex flex-col items-center space-y-1 hover:text-slate-200">
+        <i data-lucide="archive" class="w-4 h-4"></i>
+        <span class="text-[10px] font-medium">Archivo</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- VISTA 2: PANEL DE CONFIGURACIÓN Y AJUSTES SECRETO                -->
+  <!-- ================================================================= -->
+  <div id="view-settings" class="hidden flex-1 flex-col h-full bg-slate-950 p-4 overflow-y-auto">
+    <div class="max-w-md mx-auto w-full space-y-6 pb-8">
+      
+      <!-- Encabezado del Panel -->
+      <div class="flex items-center justify-between border-b border-slate-850 pb-4">
+        <div class="flex items-center space-x-2.5">
+          <div class="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white">Configuración del Mago</h2>
+            <p class="text-xs text-slate-400">Ajustes del motor de voz y calendario</p>
+          </div>
+        </div>
+        <button id="btn-close-settings" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white active:scale-95">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Plantilla del Título y Descripción del Evento -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            Título del Evento de Calendario
+          </label>
+          <input type="text" id="cfg-event-title" 
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-sky-500 transition"
+            placeholder="Predicción Mágica: {carta}">
+          <p class="text-[11px] text-slate-400 mt-1">Comodines disponibles: <code class="text-sky-400">{carta}</code>, <code class="text-emerald-400">{fecha}</code></p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            Detalles / Descripción de la Nota
+          </label>
+          <textarea id="cfg-event-details" rows="3"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-sky-500 transition"
+            placeholder="El espectador pensó libremente en el {carta} y seleccionó la fecha {fecha}."></textarea>
+        </div>
+      </div>
+
+      <!-- Configuración del Reconocimiento de Voz -->
+      <div class="space-y-3 p-4 rounded-2xl bg-slate-900/60 border border-slate-850">
+        <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Ajustes de Voz (Speech-to-Text)</h3>
+        
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Idioma del Reconocimiento</label>
+          <select id="cfg-speech-lang" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none">
+            <option value="es-ES">Español (España - es-ES)</option>
+            <option value="es-AR" selected>Español (Argentina - es-AR)</option>
+            <option value="es-MX">Español (México - es-MX)</option>
+            <option value="es-CO">Español (Colombia - es-CO)</option>
+            <option value="es-CL">Español (Chile - es-CL)</option>
+            <option value="es-US">Español (EE.UU. - es-US)</option>
+          </select>
+        </div>
+
+        <!-- Interruptores rápidos -->
+        <div class="space-y-2 pt-2">
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer">
+            <span>Vibración Háptica Secreta</span>
+            <input type="checkbox" id="cfg-haptic-feedback" checked class="w-4 h-4 accent-sky-500 rounded">
+          </label>
+          <p class="text-[11px] text-slate-500">Vibra en tu mano cuando detecta carta y fecha con éxito (ideal para no mirar).</p>
+
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer pt-2">
+            <span>Apertura Automática de Calendario</span>
+            <input type="checkbox" id="cfg-auto-open-cal" class="w-4 h-4 accent-sky-500 rounded">
+          </label>
+          <p class="text-[11px] text-slate-500">Abre Google Calendar apenas detecta ambos datos sin pulsar ningún botón.</p>
+
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer pt-2">
+            <span>Mantener Pantalla Encendida (WakeLock)</span>
+            <input type="checkbox" id="cfg-wake-lock" checked class="w-4 h-4 accent-sky-500 rounded">
+          </label>
+          <p class="text-[11px] text-slate-500">Evita que el celular se apague o bloquee en pleno efecto.</p>
+
+          <label class="flex items-center justify-between text-xs text-slate-300 cursor-pointer pt-2">
+            <span>Mostrar Transcripción en Nota</span>
+            <input type="checkbox" id="cfg-show-transcription" checked class="w-4 h-4 accent-sky-500 rounded">
+          </label>
+          <p class="text-[11px] text-slate-500">Muestra sutilmente lo que va diciendo como si fueras escribiendo la nota.</p>
+        </div>
+      </div>
+
+      <!-- Prueba en vivo del micrófono -->
+      <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-850 space-y-2">
+        <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Test de Reconocimiento</h3>
+        <p class="text-[11px] text-slate-400">Di en voz alta por ejemplo: <em class="text-sky-300">"Siete de corazones para el 15 de agosto"</em></p>
+        <div id="test-transcription" class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 min-h-[40px] italic">
+          (Presiona el botón de prueba para verificar)
+        </div>
+        <button id="btn-test-mic" class="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 active:scale-95 transition">
+          Iniciar Prueba de Voz
+        </button>
+      </div>
+
+      <!-- Botón para guardar configuración -->
+      <button id="btn-save-settings" class="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 active:scale-98 transition">
+        Guardar y Volver a Escena
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL / DIÁLOGO DE EVENTO LISTO                                   -->
+  <!-- ================================================================= -->
+  <div id="modal-prediction" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-5 shadow-2xl text-center space-y-4">
+      <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center mx-auto">
+        <i data-lucide="sparkles" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-white">Predicción Lista</h3>
+        <p id="modal-summary" class="text-xs text-slate-300 mt-1">El evento está redactado y preparado para el calendario.</p>
+      </div>
+
+      <div class="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 text-left text-xs space-y-1.5">
+        <div><span class="text-slate-400">Carta:</span> <span id="modal-card" class="font-semibold text-sky-400">--</span></div>
+        <div><span class="text-slate-400">Fecha:</span> <span id="modal-date" class="font-semibold text-emerald-400">--</span></div>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <a id="modal-btn-open" href="#" target="_blank" class="w-full py-3 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-sky-500/20 active:scale-95 transition">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+          <span>Abrir Google Calendar</span>
+        </a>
+        <button id="modal-btn-close" class="w-full py-2.5 rounded-xl bg-slate-800 text-slate-300 font-medium text-xs border border-slate-700 active:scale-95 transition">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- LÓGICA JAVASCRIPT: MOTOR DE EXTRACCIÓN Y CONTROL                  -->
+  <!-- ================================================================= -->
+  <script>
+    // Inicializar iconos Lucide
+    lucide.createIcons();
+
+    // -------------------------------------------------------------
+    // 1. ESTADO Y CONFIGURACIÓN PERSISTENTE (LOCALSTORAGE)
+    // -------------------------------------------------------------
+    const DEFAULT_CONFIG = {
+      eventTitle: "Predicción Mágica: {carta}",
+      eventDetails: "El espectador pensó libremente en el {carta} para el {fecha}.",
+      speechLang: "es-AR",
+      hapticFeedback: true,
+      autoOpenCal: false,
+      wakeLock: true,
+      showTranscription: true
+    };
+
+    let config = { ...DEFAULT_CONFIG };
+
+    function loadConfig() {
+      try {
+        const saved = localStorage.getItem('magic_predict_cfg');
+        if (saved) {
+          config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+        }
+      } catch (e) {
+        console.warn("No se pudo cargar la config:", e);
+      }
+      // Actualizar inputs en formulario
+      document.getElementById('cfg-event-title').value = config.eventTitle;
+      document.getElementById('cfg-event-details').value = config.eventDetails;
+      document.getElementById('cfg-speech-lang').value = config.speechLang;
+      document.getElementById('cfg-haptic-feedback').checked = config.hapticFeedback;
+      document.getElementById('cfg-auto-open-cal').checked = config.autoOpenCal;
+      document.getElementById('cfg-wake-lock').checked = config.wakeLock;
+      document.getElementById('cfg-show-transcription').checked = config.showTranscription;
+    }
+
+    function saveConfigFromUI() {
+      config.eventTitle = document.getElementById('cfg-event-title').value.trim() || DEFAULT_CONFIG.eventTitle;
+      config.eventDetails = document.getElementById('cfg-event-details').value.trim() || DEFAULT_CONFIG.eventDetails;
+      config.speechLang = document.getElementById('cfg-speech-lang').value;
+      config.hapticFeedback = document.getElementById('cfg-haptic-feedback').checked;
+      config.autoOpenCal = document.getElementById('cfg-auto-open-cal').checked;
+      config.wakeLock = document.getElementById('cfg-wake-lock').checked;
+      config.showTranscription = document.getElementById('cfg-show-transcription').checked;
+
+      localStorage.setItem('magic_predict_cfg', JSON.stringify(config));
+      setupRecognition();
+      if (config.wakeLock) requestWakeLock();
+    }
+
+    // -------------------------------------------------------------
+    // 2. MOTOR DE RECONOCIMIENTO DE VOZ (WEB SPEECH API)
+    // -------------------------------------------------------------
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+    let rawTranscript = "";
+    let detectedCard = null;
+    let detectedDate = null;
+    let lastGeneratedUrl = null;
+
+    function setupRecognition() {
+      if (!SpeechRecognition) {
+        alert("Atención: Web Speech API no está soportada en este navegador. Utiliza Google Chrome en Android.");
+        return;
+      }
+
+      if (recognition) {
+        try { recognition.stop(); } catch(e){}
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = config.speechLang || "es-AR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 3;
+
+      recognition.onstart = () => {
+        isListening = true;
+        updateListeningUI(true);
+      };
+
+      recognition.onend = () => {
+        // Auto-reinicio si sigue activo el modo escucha
+        if (isListening) {
+          try { recognition.start(); } catch(e){}
+        } else {
+          updateListeningUI(false);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn("Speech error:", event.error);
+        if (event.error === 'not-allowed') {
+          alert("Se requiere permiso de micrófono para la captura de voz.");
+          isListening = false;
+          updateListeningUI(false);
+        }
+      };
+
+      recognition.onresult = (event) => {
+        let interimText = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const phrase = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            rawTranscript += " " + phrase;
+          } else {
+            interimText += phrase;
+          }
+        }
+
+        const fullText = (rawTranscript + " " + interimText).trim();
+        processSpeech(fullText);
+      };
+    }
+
+    // -------------------------------------------------------------
+    // 3. MOTOR DE EXTRACCIÓN Y PARSEO (CARTAS Y FECHAS EN ESPAÑOL)
+    // -------------------------------------------------------------
+
+    // Diccionario de Valores de Cartas (Póker y Baraja Española)
+    const CARD_VALUES = [
+      { name: "As", aliases: ["as", "haz", "az", "1", "uno", "primero"] },
+      { name: "2", aliases: ["dos", "2"] },
+      { name: "3", aliases: ["tres", "3"] },
+      { name: "4", aliases: ["cuatro", "4"] },
+      { name: "5", aliases: ["cinco", "5"] },
+      { name: "6", aliases: ["seis", "6"] },
+      { name: "7", aliases: ["siete", "7"] },
+      { name: "8", aliases: ["ocho", "8"] },
+      { name: "9", aliases: ["nueve", "9"] },
+      { name: "10", aliases: ["diez", "10"] },
+      { name: "Jack", aliases: ["jack", "j", "sota", "valet", "llac"] },
+      { name: "Reina", aliases: ["reina", "dama", "q", "ku"] },
+      { name: "Rey", aliases: ["rey", "k", "ka"] }
+    ];
+
+    // Diccionario de Palos
+    const CARD_SUITS = [
+      { name: "Corazones", aliases: ["corazones", "corazon"] },
+      { name: "Diamantes", aliases: ["diamantes", "diamante", "rombos", "rombo", "brillo", "brillos"] },
+      { name: "Picas", aliases: ["picas", "pica", "espadas", "espada"] },
+      { name: "Tréboles", aliases: ["treboles", "trebol", "flores", "flor", "bastos", "basto"] }
+    ];
+
+    // Meses en español
+    const MONTHS = {
+      "enero": 0, "febrero": 1, "marzo": 2, "abril": 3, "mayo": 4, "junio": 5,
+      "julio": 6, "agosto": 7, "septiembre": 8, "setiembre": 8, "octubre": 9,
+      "noviembre": 10, "diciembre": 11
+    };
+
+    // Palabras a números para días del mes
+    const WORD_NUMBERS = {
+      "primero": 1, "uno": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5,
+      "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10,
+      "once": 11, "doce": 12, "trece": 13, "catorce": 14, "quince": 15,
+      "dieciséis": 16, "dieciseis": 16, "diecisiete": 17, "dieciocho": 18, "diecinueve": 19,
+      "veinte": 20, "veintiuno": 21, "veintidós": 22, "veintidos": 22, "veintitrés": 23, "veintitres": 23,
+      "veinticuatro": 24, "veinticinco": 25, "veintiséis": 26, "veintiseis": 26, "veintisiete": 27,
+      "veintiocho": 28, "veintinueve": 29, "treinta": 30, "treinta y uno": 31
+    };
+
+    function parseCard(text) {
+      const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      let foundValue = null;
+      let foundSuit = null;
+
+      // Buscar palo
+      for (const suit of CARD_SUITS) {
+        for (const alias of suit.aliases) {
+          const cleanAlias = alias.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const regex = new RegExp(`\\b${cleanAlias}\\b`, 'i');
+          if (regex.test(lower)) {
+            foundSuit = suit.name;
+            break;
+          }
+        }
+        if (foundSuit) break;
+      }
+
+      // Buscar valor
+      for (const val of CARD_VALUES) {
+        for (const alias of val.aliases) {
+          const cleanAlias = alias.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const regex = new RegExp(`\\b${cleanAlias}\\b`, 'i');
+          if (regex.test(lower)) {
+            foundValue = val.name;
+            break;
+          }
+        }
+        if (foundValue) break;
+      }
+
+      if (foundValue && foundSuit) {
+        return `${foundValue} de ${foundSuit}`;
+      }
+      return null;
+    }
+
+    function parseDate(text) {
+      const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      // 1. Buscar expresiones como "15 de agosto", "tres de mayo", "el 25 de diciembre"
+      // Expresión regular para número (dígito o palabra) + "de" + mes
+      const monthNames = Object.keys(MONTHS).join("|");
+      const wordNumNames = Object.keys(WORD_NUMBERS).sort((a,b) => b.length - a.length).join("|");
+
+      // Patrón con dígitos: "15 de mayo" o "15 mayo"
+      const digitRegex = new RegExp(`(?:el\\s+)?([0-9]{1,2})(?:\\s+de)?\\s+(${monthNames})(?:\\s+(?:del?|de\\s+el)?\\s+([0-9]{4}))?`, 'i');
+      const digitMatch = lower.match(digitRegex);
+
+      if (digitMatch) {
+        const day = parseInt(digitMatch[1], 10);
+        const monthStr = digitMatch[2];
+        const year = digitMatch[3] ? parseInt(digitMatch[3], 10) : new Date().getFullYear();
+        if (day >= 1 && day <= 31 && MONTHS[monthStr] !== undefined) {
+          return formatDateResult(day, MONTHS[monthStr], year);
+        }
+      }
+
+      // Patrón con palabras: "veinticinco de diciembre"
+      const wordRegex = new RegExp(`(?:el\\s+)?(${wordNumNames})(?:\\s+de)?\\s+(${monthNames})(?:\\s+(?:del?|de\\s+el)?\\s+([0-9]{4}))?`, 'i');
+      const wordMatch = lower.match(wordRegex);
+
+      if (wordMatch) {
+        const dayWord = wordMatch[1];
+        const monthStr = wordMatch[2];
+        const day = WORD_NUMBERS[dayWord];
+        const year = wordMatch[3] ? parseInt(wordMatch[3], 10) : new Date().getFullYear();
+        if (day && MONTHS[monthStr] !== undefined) {
+          return formatDateResult(day, MONTHS[monthStr], year);
+        }
+      }
+
+      // Fechas relativas: "mañana", "hoy"
+      if (/\bmañana\b/.test(lower)) {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return formatDateResult(d.getDate(), d.getMonth(), d.getFullYear());
+      }
+      if (/\bhoy\b/.test(lower)) {
+        const d = new Date();
+        return formatDateResult(d.getDate(), d.getMonth(), d.getFullYear());
+      }
+
+      return null;
+    }
+
+    function formatDateResult(day, monthIndex, year) {
+      const monthNamesCapitalized = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+      ];
+      
+      const pad = (n) => String(n).padStart(2, '0');
+      const isoDate = `${year}${pad(monthIndex + 1)}${pad(day)}`; // YYYYMMDD para Google Calendar
+
+      return {
+        formattedText: `${day} de ${monthNamesCapitalized[monthIndex]} de ${year}`,
+        shortText: `${day} de ${monthNamesCapitalized[monthIndex]}`,
+        isoDate: isoDate,
+        day: day,
+        monthIndex: monthIndex,
+        year: year
+      };
+    }
+
+    // -------------------------------------------------------------
+    // 4. GENERADOR DE GOOGLE CALENDAR
+    // -------------------------------------------------------------
+    function generateGoogleCalendarUrl(card, dateObj) {
+      let title = config.eventTitle
+        .replace(/{carta}/gi, card)
+        .replace(/{fecha}/gi, dateObj.shortText);
+
+      let details = config.eventDetails
+        .replace(/{carta}/gi, card)
+        .replace(/{fecha}/gi, dateObj.formattedText);
+
+      // Formato fecha Google Calendar para evento de todo el día: YYYYMMDD/YYYYMMDD (siguiente día)
+      const nextDayDate = new Date(dateObj.year, dateObj.monthIndex, dateObj.day + 1);
+      const pad = (n) => String(n).padStart(2, '0');
+      const nextDayIso = `${nextDayDate.getFullYear()}${pad(nextDayDate.getMonth() + 1)}${pad(nextDayDate.getDate())}`;
+      
+      const datesParam = `${dateObj.isoDate}/${nextDayIso}`;
+
+      const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: title,
+        details: details,
+        dates: datesParam
+      });
+
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    }
+
+    // -------------------------------------------------------------
+    // 5. PROCESAMIENTO CENTRAL DE VOZ Y HÁPTICA
+    // -------------------------------------------------------------
+    function processSpeech(fullText) {
+      // Mostrar en la nota si está habilitado
+      if (config.showTranscription && fullText) {
+        document.getElementById('note-body').innerText = fullText;
+      }
+      
+      // Mostrar también en panel de test
+      document.getElementById('test-transcription').innerText = fullText || "(Escuchando...)";
+
+      let newlyFound = false;
+
+      // Buscar carta si no fue detectada
+      if (!detectedCard) {
+        const card = parseCard(fullText);
+        if (card) {
+          detectedCard = card;
+          document.getElementById('hud-card').innerText = card;
+          newlyFound = true;
+        }
+      }
+
+      // Buscar fecha si no fue detectada
+      if (!detectedDate) {
+        const parsedDate = parseDate(fullText);
+        if (parsedDate) {
+          detectedDate = parsedDate;
+          document.getElementById('hud-date').innerText = detectedDate.shortText;
+          newlyFound = true;
+        }
+      }
+
+      // Ambas variables detectadas: ¡GOLPE FINAL!
+      if (detectedCard && detectedDate) {
+        lastGeneratedUrl = generateGoogleCalendarUrl(detectedCard, detectedDate);
+
+        // Habilitar botón HUD
+        const btnQuick = document.getElementById('btn-quick-calendar');
+        btnQuick.disabled = false;
+        btnQuick.classList.remove('opacity-50');
+
+        // Configurar modal
+        document.getElementById('modal-card').innerText = detectedCard;
+        document.getElementById('modal-date').innerText = detectedDate.formattedText;
+        document.getElementById('modal-btn-open').href = lastGeneratedUrl;
+
+        // Feedback háptico secreto (vibración en el bolsillo o mano del mago)
+        if (newlyFound && config.hapticFeedback && 'vibrate' in navigator) {
+          navigator.vibrate([150, 80, 200]); // Patrón de confirmación táctil
+        }
+
+        // Si está configurada la apertura automática directa
+        if (config.autoOpenCal && newlyFound) {
+          setTimeout(() => {
+            window.open(lastGeneratedUrl, '_blank');
+          }, 800);
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 6. CONTROLADORES DE INTERFAZ Y MODO SECRETO
+    // -------------------------------------------------------------
+    function updateListeningUI(active) {
+      const indicator = document.getElementById('listening-indicator');
+      const fabIcon = document.getElementById('fab-icon');
+      const hudState = document.getElementById('hud-voice-state');
+
+      if (active) {
+        indicator.classList.remove('hidden');
+        indicator.classList.add('flex');
+        fabIcon.classList.add('text-emerald-300', 'animate-pulse');
+        hudState.innerText = "● Escuchando en vivo";
+        hudState.classList.add('text-emerald-400');
+        hudState.classList.remove('text-slate-400');
+      } else {
+        indicator.classList.add('hidden');
+        indicator.classList.remove('flex');
+        fabIcon.classList.remove('text-emerald-300', 'animate-pulse');
+        hudState.innerText = "Micrófono inactivo";
+        hudState.classList.remove('text-emerald-400');
+        hudState.classList.add('text-slate-400');
+      }
+    }
+
+    function toggleListening() {
+      if (!recognition) setupRecognition();
+      if (!recognition) return;
+
+      if (isListening) {
+        isListening = false;
+        try { recognition.stop(); } catch(e){}
+        updateListeningUI(false);
+      } else {
+        isListening = true;
+        try { 
+          recognition.start(); 
+          if ('vibrate' in navigator && config.hapticFeedback) {
+            navigator.vibrate(50); // Pequeño pulso táctil para confirmar inicio
+          }
+        } catch(e){
+          console.warn(e);
+        }
+      }
+    }
+
+    function resetCapture() {
+      rawTranscript = "";
+      detectedCard = null;
+      detectedDate = null;
+      lastGeneratedUrl = null;
+      document.getElementById('hud-card').innerText = "Esperando...";
+      document.getElementById('hud-date').innerText = "Esperando...";
+      document.getElementById('btn-quick-calendar').disabled = true;
+      document.getElementById('note-body').innerText = "Revisar recordatorios pendientes de la semana y organizar detalles de la reunión.";
+      document.getElementById('test-transcription').innerText = "(Presiona el botón de prueba para verificar)";
+    }
+
+    // -------------------------------------------------------------
+    // 7. PREVENCIÓN DE BLOQUEO DE PANTALLA (WAKE LOCK API)
+    // -------------------------------------------------------------
+    let wakeLockSentinel = null;
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLockSentinel = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.log(`Wake Lock error: ${err.name}, ${err.message}`);
+        }
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 8. EVENT LISTENERS Y DISPARADORES
+    // -------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      loadConfig();
+      setupRecognition();
+      if (config.wakeLock) requestWakeLock();
+
+      // Botón flotante central (micrófono)
+      document.getElementById('fab-magic-mic').addEventListener('click', toggleListening);
+
+      // Disparador secreto 1: Toque en el botón de archivo de la esquina o icono
+      document.getElementById('secret-listen-trigger').addEventListener('click', toggleListening);
+
+      // Disparador secreto de configuración:
+      document.getElementById('btn-open-settings').addEventListener('click', () => {
+        document.getElementById('view-camouflage').classList.add('hidden');
+        document.getElementById('view-settings').classList.remove('hidden');
+        document.getElementById('view-settings').classList.add('flex');
+      });
+
+      document.getElementById('secret-settings-corner').addEventListener('dblclick', () => {
+        document.getElementById('view-camouflage').classList.add('hidden');
+        document.getElementById('view-settings').classList.remove('hidden');
+        document.getElementById('view-settings').classList.add('flex');
+      });
+
+      // Cerrar configuración
+      document.getElementById('btn-close-settings').addEventListener('click', () => {
+        document.getElementById('view-settings').classList.add('hidden');
+        document.getElementById('view-settings').classList.remove('flex');
+        document.getElementById('view-camouflage').classList.remove('hidden');
+      });
+
+      // Guardar configuración
+      document.getElementById('btn-save-settings').addEventListener('click', () => {
+        saveConfigFromUI();
+        document.getElementById('view-settings').classList.add('hidden');
+        document.getElementById('view-settings').classList.remove('flex');
+        document.getElementById('view-camouflage').classList.remove('hidden');
+      });
+
+      // Botón "Agendar" inocente de la nota
+      document.getElementById('btn-save-note-action').addEventListener('click', () => {
+        if (lastGeneratedUrl) {
+          window.open(lastGeneratedUrl, '_blank');
+        } else {
+          // Si aún no detectó nada, abre modal informativo o simula guardado
+          alert("Nota sincronizada localmente.");
+        }
+      });
+
+      // Botón rápido en el HUD del mago
+      document.getElementById('btn-quick-calendar').addEventListener('click', () => {
+        if (lastGeneratedUrl) {
+          document.getElementById('modal-prediction').classList.remove('hidden');
+        }
+      });
+
+      // Botón reiniciar captura
+      document.getElementById('btn-reset-hud').addEventListener('click', resetCapture);
+
+      // Cerrar modal
+      document.getElementById('modal-btn-close').addEventListener('click', () => {
+        document.getElementById('modal-prediction').classList.add('hidden');
+      });
+
+      // Botón de prueba en panel de ajustes
+      document.getElementById('btn-test-mic').addEventListener('click', () => {
+        toggleListening();
+      });
+
+      // Hora simulada en nota
+      const now = new Date();
+      document.getElementById('current-time-display').innerText = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    });
+  </script>
+</body>
+</html>
