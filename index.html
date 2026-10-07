@@ -228,6 +228,20 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
             class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-sky-500 transition"
             placeholder="El espectador pensó libremente en el {carta} y seleccionó la fecha {fecha}."></textarea>
         </div>
+
+        <!-- Conexión Webhook para Auto-Guardado Silencioso -->
+        <div class="p-4 rounded-2xl bg-sky-950/30 border border-sky-800/40 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-sky-300 uppercase tracking-wider">Guardado 100% Automático</span>
+            <span class="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 text-[10px]">Google Script</span>
+          </div>
+          <p class="text-[11px] text-slate-400">
+            Pega aquí la URL de tu Web App de Google Apps Script para guardar el evento en tu calendario de forma invisible sin tener que pulsar "Guardar".
+          </p>
+          <input type="url" id="cfg-gas-webhook" 
+            class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-sky-500 font-mono"
+            placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
       </div>
 
       <!-- Configuración del Reconocimiento de Voz -->
@@ -337,6 +351,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
     const DEFAULT_CONFIG = {
       eventTitle: "Predicción Mágica: {carta}",
       eventDetails: "El espectador pensó libremente en el {carta} para el {fecha}.",
+      gasWebhookUrl: "",
       speechLang: "es-AR",
       hapticFeedback: true,
       autoOpenCal: true,
@@ -359,6 +374,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
       // Actualizar inputs en formulario
       document.getElementById('cfg-event-title').value = config.eventTitle;
       document.getElementById('cfg-event-details').value = config.eventDetails;
+      document.getElementById('cfg-gas-webhook').value = config.gasWebhookUrl || "";
       document.getElementById('cfg-speech-lang').value = config.speechLang;
       document.getElementById('cfg-haptic-feedback').checked = config.hapticFeedback;
       document.getElementById('cfg-auto-open-cal').checked = config.autoOpenCal;
@@ -369,6 +385,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
     function saveConfigFromUI() {
       config.eventTitle = document.getElementById('cfg-event-title').value.trim() || DEFAULT_CONFIG.eventTitle;
       config.eventDetails = document.getElementById('cfg-event-details').value.trim() || DEFAULT_CONFIG.eventDetails;
+      config.gasWebhookUrl = document.getElementById('cfg-gas-webhook').value.trim();
       config.speechLang = document.getElementById('cfg-speech-lang').value;
       config.hapticFeedback = document.getElementById('cfg-haptic-feedback').checked;
       config.autoOpenCal = document.getElementById('cfg-auto-open-cal').checked;
@@ -711,12 +728,33 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
           navigator.vibrate([180, 80, 240]);
         }
 
-        // 4. CREAR EL EVENTO AUTOMÁTICAMENTE
-        // Navegación directa en la ventana para evitar bloqueos de popup en Android Chrome
-        if (config.autoOpenCal) {
-          setTimeout(() => {
-            window.location.href = lastGeneratedUrl;
-          }, 350);
+        // 4. CREAR Y GUARDAR EL EVENTO
+        if (config.gasWebhookUrl && config.gasWebhookUrl.trim() !== "") {
+          // Guardado silencioso 100% automático en Google Calendar
+          const pad = (n) => String(n).padStart(2, '0');
+          const dateParam = `${detectedDate.year}-${pad(detectedDate.monthIndex + 1)}-${pad(detectedDate.day)}`;
+          let title = config.eventTitle.replace(/{carta}/gi, detectedCard).replace(/{fecha}/gi, detectedDate.shortText);
+          let details = config.eventDetails.replace(/{carta}/gi, detectedCard).replace(/{fecha}/gi, detectedDate.formattedText);
+          
+          const scriptUrl = `${config.gasWebhookUrl.trim()}?title=${encodeURIComponent(title)}&desc=${encodeURIComponent(details)}&date=${encodeURIComponent(dateParam)}`;
+          
+          fetch(scriptUrl, { mode: 'no-cors' }).catch(console.warn);
+
+          // Abre Google Calendar en la fecha exacta donde el evento ya está guardado
+          const viewDayUrl = `https://calendar.google.com/calendar/r/day/${detectedDate.year}/${detectedDate.monthIndex + 1}/${detectedDate.day}`;
+          
+          if (config.autoOpenCal) {
+            setTimeout(() => {
+              window.location.href = viewDayUrl;
+            }, 600);
+          }
+        } else {
+          // Si no configuró webhook, abre la plantilla con botón Guardar
+          if (config.autoOpenCal) {
+            setTimeout(() => {
+              window.location.href = lastGeneratedUrl;
+            }, 350);
+          }
         }
       }
     }
