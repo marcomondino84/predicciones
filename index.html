@@ -339,7 +339,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
       eventDetails: "El espectador pensó libremente en el {carta} para el {fecha}.",
       speechLang: "es-AR",
       hapticFeedback: true,
-      autoOpenCal: false,
+      autoOpenCal: true,
       wakeLock: true,
       showTranscription: true
     };
@@ -351,6 +351,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
         const saved = localStorage.getItem('magic_predict_cfg');
         if (saved) {
           config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+          if (config.autoOpenCal === undefined) config.autoOpenCal = true;
         }
       } catch (e) {
         console.warn("No se pudo cargar la config:", e);
@@ -389,6 +390,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
     let detectedCard = null;
     let detectedDate = null;
     let lastGeneratedUrl = null;
+    let isScheduled = false;
 
     function setupRecognition() {
       if (!SpeechRecognition) {
@@ -412,8 +414,8 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
       };
 
       recognition.onend = () => {
-        // Auto-reinicio si sigue activo el modo escucha
-        if (isListening) {
+        // Auto-reinicio solo si sigue activo el modo escucha y no se ha agendado
+        if (isListening && !isScheduled) {
           try { recognition.start(); } catch(e){}
         } else {
           updateListeningUI(false);
@@ -430,6 +432,8 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
       };
 
       recognition.onresult = (event) => {
+        if (isScheduled) return;
+
         let interimText = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const phrase = event.results[i][0].transcript;
@@ -461,17 +465,22 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
       { name: "8", aliases: ["ocho", "8"] },
       { name: "9", aliases: ["nueve", "9"] },
       { name: "10", aliases: ["diez", "10"] },
-      { name: "Jack", aliases: ["jack", "j", "sota", "valet", "llac"] },
+      { name: "Jack", aliases: ["jack", "j", "jota", "sota", "valet", "llac"] },
+      { name: "Caballo", aliases: ["caballo", "caballero"] },
       { name: "Reina", aliases: ["reina", "dama", "q", "ku"] },
       { name: "Rey", aliases: ["rey", "k", "ka"] }
     ];
 
-    // Diccionario de Palos
+    // Diccionario de Palos (Francesa y Española)
     const CARD_SUITS = [
       { name: "Corazones", aliases: ["corazones", "corazon"] },
       { name: "Diamantes", aliases: ["diamantes", "diamante", "rombos", "rombo", "brillo", "brillos"] },
-      { name: "Picas", aliases: ["picas", "pica", "espadas", "espada"] },
-      { name: "Tréboles", aliases: ["treboles", "trebol", "flores", "flor", "bastos", "basto"] }
+      { name: "Picas", aliases: ["picas", "pica"] },
+      { name: "Tréboles", aliases: ["treboles", "trebol", "flores", "flor"] },
+      { name: "Espadas", aliases: ["espadas", "espada"] },
+      { name: "Bastos", aliases: ["bastos", "basto"] },
+      { name: "Copas", aliases: ["copas", "copa"] },
+      { name: "Oros", aliases: ["oros", "oro"] }
     ];
 
     // Meses en español
@@ -533,12 +542,10 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
     function parseDate(text) {
       const lower = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-      // 1. Buscar expresiones como "15 de agosto", "tres de mayo", "el 25 de diciembre"
-      // Expresión regular para número (dígito o palabra) + "de" + mes
       const monthNames = Object.keys(MONTHS).join("|");
       const wordNumNames = Object.keys(WORD_NUMBERS).sort((a,b) => b.length - a.length).join("|");
 
-      // Patrón con dígitos: "15 de mayo" o "15 mayo"
+      // 1. Patrón con dígitos y nombre de mes: "15 de mayo" o "15 mayo"
       const digitRegex = new RegExp(`(?:el\\s+)?([0-9]{1,2})(?:\\s+de)?\\s+(${monthNames})(?:\\s+(?:del?|de\\s+el)?\\s+([0-9]{4}))?`, 'i');
       const digitMatch = lower.match(digitRegex);
 
@@ -551,7 +558,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
         }
       }
 
-      // Patrón con palabras: "veinticinco de diciembre"
+      // 2. Patrón con palabras y nombre de mes: "veinticinco de diciembre" o "tres de mayo"
       const wordRegex = new RegExp(`(?:el\\s+)?(${wordNumNames})(?:\\s+de)?\\s+(${monthNames})(?:\\s+(?:del?|de\\s+el)?\\s+([0-9]{4}))?`, 'i');
       const wordMatch = lower.match(wordRegex);
 
@@ -565,7 +572,20 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
         }
       }
 
-      // Fechas relativas: "mañana", "hoy"
+      // 3. Patrón numérico de día y mes: "15 del 5", "quince del 8", "12/10"
+      const numMonthRegex = new RegExp(`(?:el\\s+)?([0-9]{1,2}|${wordNumNames})\\s+(?:del?|de|\\/)\\s+([0-9]{1,2})(?:\\s+(?:del?|de|\\/)?\\s+([0-9]{4}))?`, 'i');
+      const numMatch = lower.match(numMonthRegex);
+      if (numMatch) {
+        let day = parseInt(numMatch[1], 10);
+        if (isNaN(day)) day = WORD_NUMBERS[numMatch[1]];
+        const monthNum = parseInt(numMatch[2], 10);
+        const year = numMatch[3] ? parseInt(numMatch[3], 10) : new Date().getFullYear();
+        if (day >= 1 && day <= 31 && monthNum >= 1 && monthNum <= 12) {
+          return formatDateResult(day, monthNum - 1, year);
+        }
+      }
+
+      // 4. Fechas relativas: "mañana", "hoy"
       if (/\bmañana\b/.test(lower)) {
         const d = new Date();
         d.setDate(d.getDate() + 1);
@@ -631,6 +651,8 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
     // 5. PROCESAMIENTO CENTRAL DE VOZ Y HÁPTICA
     // -------------------------------------------------------------
     function processSpeech(fullText) {
+      if (isScheduled) return;
+
       // Mostrar en la nota si está habilitado
       if (config.showTranscription && fullText) {
         document.getElementById('note-body').innerText = fullText;
@@ -639,15 +661,12 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
       // Mostrar también en panel de test
       document.getElementById('test-transcription').innerText = fullText || "(Escuchando...)";
 
-      let newlyFound = false;
-
       // Buscar carta si no fue detectada
       if (!detectedCard) {
         const card = parseCard(fullText);
         if (card) {
           detectedCard = card;
           document.getElementById('hud-card').innerText = card;
-          newlyFound = true;
         }
       }
 
@@ -657,34 +676,47 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
         if (parsedDate) {
           detectedDate = parsedDate;
           document.getElementById('hud-date').innerText = detectedDate.shortText;
-          newlyFound = true;
         }
       }
 
       // Ambas variables detectadas: ¡GOLPE FINAL!
-      if (detectedCard && detectedDate) {
+      if (detectedCard && detectedDate && !isScheduled) {
+        isScheduled = true;
         lastGeneratedUrl = generateGoogleCalendarUrl(detectedCard, detectedDate);
 
-        // Habilitar botón HUD
+        // 1. DETENER INMEDIATAMENTE LA GRABACIÓN DE VOZ
+        isListening = false;
+        if (recognition) {
+          try { recognition.stop(); } catch(e){}
+        }
+        updateListeningUI(false);
+
+        // 2. Feedback visual discreto en la nota
+        document.getElementById('status-subtext').innerText = "✓ Predicción detectada";
+        document.getElementById('hud-voice-state').innerText = "✓ Captura completada";
+        document.getElementById('hud-voice-state').classList.add('text-emerald-400');
+        document.getElementById('hud-voice-state').classList.remove('text-slate-400');
+
+        // Habilitar botones de calendario
         const btnQuick = document.getElementById('btn-quick-calendar');
         btnQuick.disabled = false;
         btnQuick.classList.remove('opacity-50');
 
-        // Configurar modal
         document.getElementById('modal-card').innerText = detectedCard;
         document.getElementById('modal-date').innerText = detectedDate.formattedText;
         document.getElementById('modal-btn-open').href = lastGeneratedUrl;
 
-        // Feedback háptico secreto (vibración en el bolsillo o mano del mago)
-        if (newlyFound && config.hapticFeedback && 'vibrate' in navigator) {
-          navigator.vibrate([150, 80, 200]); // Patrón de confirmación táctil
+        // 3. Feedback háptico secreto en la mano del mago (patrón de confirmación)
+        if (config.hapticFeedback && 'vibrate' in navigator) {
+          navigator.vibrate([180, 80, 240]);
         }
 
-        // Si está configurada la apertura automática directa
-        if (config.autoOpenCal && newlyFound) {
+        // 4. CREAR EL EVENTO AUTOMÁTICAMENTE
+        // Navegación directa en la ventana para evitar bloqueos de popup en Android Chrome
+        if (config.autoOpenCal) {
           setTimeout(() => {
-            window.open(lastGeneratedUrl, '_blank');
-          }, 800);
+            window.location.href = lastGeneratedUrl;
+          }, 350);
         }
       }
     }
@@ -708,21 +740,23 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
         indicator.classList.add('hidden');
         indicator.classList.remove('flex');
         fabIcon.classList.remove('text-emerald-300', 'animate-pulse');
-        hudState.innerText = "Micrófono inactivo";
-        hudState.classList.remove('text-emerald-400');
-        hudState.classList.add('text-slate-400');
+        if (!isScheduled) {
+          hudState.innerText = "Micrófono inactivo";
+          hudState.classList.remove('text-emerald-400');
+          hudState.classList.add('text-slate-400');
+        }
       }
     }
 
     function toggleListening() {
-      if (!recognition) setupRecognition();
-      if (!recognition) return;
-
       if (isListening) {
         isListening = false;
         try { recognition.stop(); } catch(e){}
         updateListeningUI(false);
       } else {
+        isScheduled = false;
+        resetCapture();
+        if (!recognition) setupRecognition();
         isListening = true;
         try { 
           recognition.start(); 
@@ -740,11 +774,13 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
       detectedCard = null;
       detectedDate = null;
       lastGeneratedUrl = null;
+      isScheduled = false;
       document.getElementById('hud-card').innerText = "Esperando...";
       document.getElementById('hud-date').innerText = "Esperando...";
       document.getElementById('btn-quick-calendar').disabled = true;
       document.getElementById('note-body').innerText = "Revisar recordatorios pendientes de la semana y organizar detalles de la reunión.";
       document.getElementById('test-transcription').innerText = "(Presiona el botón de prueba para verificar)";
+      document.getElementById('status-subtext').innerText = "Guardado automáticamente";
     }
 
     // -------------------------------------------------------------
