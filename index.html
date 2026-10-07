@@ -351,7 +351,7 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
     const DEFAULT_CONFIG = {
       eventTitle: "Predicción Mágica: {carta}",
       eventDetails: "El espectador pensó libremente en el {carta} para el {fecha}.",
-      gasWebhookUrl: "",
+      gasWebhookUrl: "https://script.google.com/macros/s/AKfycbzfR9hyrs31iMCZWFw2bnqYIjN1aU0DQg1Noyzax6qH0EgwgGLw-Q-ZppkrsIlRKDpbpg/exec",
       speechLang: "es-AR",
       hapticFeedback: true,
       autoOpenCal: true,
@@ -366,6 +366,9 @@ Revisar recordatorios pendientes de la semana y organizar detalles de la reunió
         const saved = localStorage.getItem('magic_predict_cfg');
         if (saved) {
           config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+          if (!config.gasWebhookUrl) {
+            config.gasWebhookUrl = DEFAULT_CONFIG.gasWebhookUrl;
+          }
           if (config.autoOpenCal === undefined) config.autoOpenCal = true;
         }
       } catch (e) {
